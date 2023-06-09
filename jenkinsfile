@@ -1,1 +1,49 @@
+pipeline {
+    agent any
 
+    stages {
+        stage('Hello') {
+            steps {
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/AxelRonny/jenkins-docker-']])
+            }
+        }
+        
+        
+         stage('docker') {
+            steps {
+                sh 'docker build -t  axelronny/docker-jenkins . '
+            }
+        }
+        
+        stage('Push') {
+      steps {
+          sh'docker login -u axelronny -p dckr_pat_IbYxbuNOd1TzQs7-1CUQnMUoxR8'
+        sh 'docker push axelronny/docker-jenkins'
+      }
+        
+    }
+    
+    stage('jenkins') {
+            steps {
+               sshPublisher(publishers: [sshPublisherDesc(configName: 'StagingVMazure', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: 'docker run -d -p 80:80 axelronny/docker-jenkins', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+            }
+        }
+        
+        stage('Terraform init'){
+            steps{
+                sh 'terraform init'
+            }
+        }
+        stage('Terraform plan'){
+            steps{
+                sh 'terraform plan'
+            }
+        }
+        stage('Terraform apply'){
+            steps{
+                sh 'terraform apply -auto-approve'
+            }
+    }
+    
+    }
+}
